@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+option go_package = "github.com/inet256/diet256/internal/protocol";
+
+package diet256;
+
+service Control {
+    rpc FindAddr(FindAddrReq) returns (FindAddrRes) {};
+    rpc LookupPublicKey(LookupPublicKeyReq) returns (LookupPublicKeyRes) {};
+
+    rpc Dial(DialReq) returns (DialRes) {};
+    rpc Listen(ListenReq) returns (stream ListenRes) {};
+}
+
+message FindAddrReq {
+    bytes prefix = 1;
+    int32 nbits = 2;
+}
+
+message FindAddrRes {
+    bytes addr = 1;
+}
+
+message LookupPublicKeyReq {
+    bytes target = 1;
+}
+
+message LookupPublicKeyRes {
+    bytes public_key = 1;
+}
+
+message DialReq {
+    bytes target = 1;
+}
+
+message DialRes {
+    string addr = 1;
+}
+
+message ListenReq {}
+
+message ListenRes {
+    bytes id = 1;
+    string addr = 2;
+}
