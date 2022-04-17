@@ -82,7 +82,7 @@ func (c *Client) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 	if err != nil {
 		return nil, err
 	}
-	c.log.Infof("opened node %s", privateKey)
+	c.log.Infof("opened node %s", id)
 	c.nodes[id] = node
 	return node, nil
 }

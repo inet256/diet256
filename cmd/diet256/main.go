@@ -44,7 +44,7 @@ func NewServeCmd() *cobra.Command {
 	}
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		laddr, privateKeyPath := args[0], args[1]
-		privateKey, err := LoadPrivateKey(privateKeyPath)
+		privateKey, err := loadPrivateKey(privateKeyPath)
 		if err != nil {
 			return err
 		}
@@ -87,7 +87,7 @@ func NewDaemonCmd() *cobra.Command {
 	return c
 }
 
-func LoadPrivateKey(path string) (inet256.PrivateKey, error) {
+func loadPrivateKey(path string) (inet256.PrivateKey, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err

@@ -54,7 +54,7 @@ You can do that with `inet256 ip6-portal`, if `diet256 daemon` or another INET25
 
 diet256 also supports an in process IPv6 portal.  You can launch that with
 ```
-$ diet256 ip6-portal
+$ diet256 ip6-portal --private-key ./path/to/private_key.pem
 ```
 And then you will have a TUN device connected to the diet256 network.
 
