@@ -1,16 +1,16 @@
 # Diet256
-Diet256 is a centrally coordinated, densely connected overlay network, implementing the [INET256](https://github.com/inet256/inet256) spec.
+Diet256 is a centrally coordinated, densely connected overlay network, implementing the [INET256](https://github.com/inet256/inet256) [spec](https://github.com/inet256/inet256/blob/master/docs/10_Spec.md).
 It's the same simple INET256 API, but without any of peering or routing configuration to manage.
 
-Diet256 makes all its connections over QUIC and uses a central server to discover the IP address of peers.
+Diet256 makes all its connections over The Internet using QUIC and uses a central server to discover the IP address of peers.
 The central server is outside an INET256 application's security perimeter, and the worst thing it can do is misinform a client about the location of a peer.
-It can't trick clients into sending or receiving messages to or from the wrong peers.
+It can't trick applications into sending or receiving messages to or from the wrong peers.
 
 ## Getting Started
 Either download a binary from the release page or build from source.
 
 ### Installing From Source
-In the repo, run `make install` and it will install to `$GOPATH/bin`
+In the repo, run `make install` and it will install to `$GOPATH/bin`.
 
 ## Run the Daemon
 You can run diet256 as a fully functional INET256 implementation (instead of the reference implementation).
@@ -29,27 +29,31 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"log"
 
 	"github.com/inet256/diet256"
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
 func main() {
-	srv, err := diet256.New() // That's it; now you're ready to communicate with other Nodes.
+	srv, err := diet256.New() // That's it; now you're ready to create Nodes.
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Provide a key, which will determine the Node's local address
-	var privateKey inet256.PrivateKey
-	n, err := srv.Open(ctx, privateKey)
+	_, privateKey, _ = ed25519.GenerateKey(nil)
+	node, err := srv.Open(ctx, privateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer n.Close()
+	defer node.Close()
+	log.Println("local node:", node.LocalAddr())
+
 	// dst is the address of the peer you want to send to.
 	dst := inet256.ID{}
-	n.Tell(context.Background(), dst, []byte("ping"))
+	node.Tell(context.Background(), dst, []byte("ping"))
 }
 ```
 
