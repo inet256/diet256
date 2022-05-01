@@ -17,10 +17,10 @@ install:
 	go install ./cmd/diet256
 
 out/diet256_linux_amd64:
-	GOOS=linux GOARCH=amd64 etc/build_go_binary.sh out/diet256_linux_amd64 ./cmd/diet256
+	GOOS=linux GOARCH=amd64 etc/build_go_binary.sh out/diet256_linux_amd64_${TAG} ./cmd/diet256
 
 out/diet256_darwin_amd64:
-	GOOS=darwin GOARCH=amd64 etc/build_go_binary.sh out/diet256_darwin_amd64 ./cmd/diet256
+	GOOS=darwin GOARCH=amd64 etc/build_go_binary.sh out/diet256_darwin_amd64_${TAG} ./cmd/diet256
 
 build: out/diet256_linux_amd64 out/diet256_darwin_amd64
 
