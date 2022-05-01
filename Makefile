@@ -1,5 +1,5 @@
 
-.PHONY: test protobuf build out/diet256_darwin_amd64 out/diet256_linux_amd64
+.PHONY: clean test protobuf build out/diet256_darwin_amd64 out/diet256_linux_amd64
 
 test: protobuf
 	go test --race ./...
@@ -26,3 +26,7 @@ build: out/diet256_linux_amd64 out/diet256_darwin_amd64
 
 docker-push: docker
 	./etc/push.sh
+
+clean:
+	rm ./out/*
+
