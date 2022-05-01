@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
+	"runtime/debug"
 
 	"github.com/inet256/diet256"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -33,6 +35,7 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(NewDaemonCmd())
 	c.AddCommand(NewServeCmd())
 	c.AddCommand(inet256ipv6.NewIP6PortalCmd(newNode))
+	c.AddCommand(NewVersionCmd())
 	return c
 }
 
@@ -85,6 +88,21 @@ func NewDaemonCmd() *cobra.Command {
 		return gs.Serve(l)
 	}
 	return c
+}
+
+func NewVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "print version information",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			info, ok := debug.ReadBuildInfo()
+			if !ok {
+				return nil
+			}
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), info)
+			return err
+		},
+	}
 }
 
 func loadPrivateKey(path string) (inet256.PrivateKey, error) {
