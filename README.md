@@ -53,7 +53,7 @@ func main() {
 
 	// dst is the address of the peer you want to send to.
 	dst := inet256.ID{}
-	node.Tell(context.Background(), dst, []byte("ping"))
+	node.Send(context.Background(), dst, []byte("ping"))
 }
 ```
 
