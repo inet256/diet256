@@ -206,7 +206,7 @@ func (n *Node) dialPeerAt(ctx context.Context, id inet256.Addr, raddr netip.Addr
 	udpAddr := net.UDPAddrFromAddrPort(raddr)
 	// TODO: lock the remote address
 	log.Infof("dialing peer")
-	sess, err := quic.DialContext(ctx, n.baseConn, udpAddr, "", n.tlsConfig, n.quicConfig)
+	sess, err := quic.DialContext(ctx, n.baseConn, udpAddr, "", n.tlsConfig.Clone(), n.quicConfig)
 	if err != nil {
 		return nil, err
 	}

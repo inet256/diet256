@@ -87,7 +87,7 @@ func (c *Client) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 	return node, nil
 }
 
-func (c *Client) Delete(ctx context.Context, privateKey inet256.PrivateKey) error {
+func (c *Client) Drop(ctx context.Context, privateKey inet256.PrivateKey) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	id := inet256.NewAddr(privateKey.Public())
@@ -167,7 +167,7 @@ func ParseEndpoint(x []byte) (*Endpoint, error) {
 	if len(parts) != 2 {
 		panic(x)
 	}
-	id, err := inet256.ParseAddrB64([]byte(parts[0]))
+	id, err := inet256.ParseAddrBase64([]byte(parts[0]))
 	if err != nil {
 		panic(err)
 	}
