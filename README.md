@@ -1,5 +1,5 @@
 # Diet256
-Diet256 is a centrally coordinated, densely connected overlay network, implementing the [INET256](https://github.com/inet256/inet256) [spec](https://github.com/inet256/inet256/blob/master/docs/10_Spec.md).
+Diet256 is a centrally coordinated, densely connected overlay network, implementing the [INET256](https://github.com/inet256/inet256) [spec](https://github.com/inet256/inet256/blob/master/doc/10_Spec.md).
 It's the same simple INET256 API, but without any of peering or routing configuration to manage.
 
 Diet256 makes all its connections over The Internet using QUIC and uses a central server to discover the IP address of peers.
