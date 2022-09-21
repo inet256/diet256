@@ -150,7 +150,6 @@ func generateServerTLS(privKey p2p.PrivateKey) *tls.Config {
 func generateQUICConfig() *quic.Config {
 	return &quic.Config{
 		EnableDatagrams: true,
-		KeepAlive:       true,
 	}
 }
 

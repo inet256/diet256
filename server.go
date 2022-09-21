@@ -35,9 +35,7 @@ type Server struct {
 }
 
 func NewServer(pconn net.PacketConn, privateKey inet256.PrivateKey) (*Server, error) {
-	lis, err := quic.Listen(pconn, generateServerTLS(privateKey), &quic.Config{
-		KeepAlive: true,
-	})
+	lis, err := quic.Listen(pconn, generateServerTLS(privateKey), &quic.Config{})
 	if err != nil {
 		return nil, err
 	}
