@@ -3,10 +3,9 @@ module github.com/inet256/diet256
 go 1.18
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20220617145626-749dd26b09b0
-	github.com/golang/protobuf v1.5.2
-	github.com/inet256/inet256 v0.0.5-0.20220617151021-3de00a24eb6b
-	github.com/lucas-clemente/quic-go v0.29.0
+	github.com/brendoncarroll/go-p2p v0.0.0-20221106152522-e250e2942e27
+	github.com/inet256/inet256 v0.0.6-0.20221106171430-a5966e5247b4
+	github.com/lucas-clemente/quic-go v0.29.2
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
@@ -18,17 +17,16 @@ require (
 )
 
 require (
-	github.com/cheekybits/genny v1.0.0 // indirect
+	github.com/brendoncarroll/go-tai64 v0.0.0-20220527232055-eab29bd93d59 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1 // indirect
-	github.com/marten-seemann/qtls-go1-16 v0.1.5 // indirect
-	github.com/marten-seemann/qtls-go1-17 v0.1.2 // indirect
-	github.com/marten-seemann/qtls-go1-18 v0.1.2 // indirect
-	github.com/marten-seemann/qtls-go1-19 v0.1.0 // indirect
+	github.com/marten-seemann/qtls-go1-18 v0.1.3 // indirect
+	github.com/marten-seemann/qtls-go1-19 v0.1.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
