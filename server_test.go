@@ -55,7 +55,7 @@ func newTestServer(t testing.TB, i int) *Server {
 
 func newTestServerFromConn(t testing.TB, i int, pc net.PacketConn) *Server {
 	pk := p2ptest.NewTestKey(t, i)
-	s, err := NewServer(pc, pk)
+	s, err := NewServer(pc, pk, WithFindAddrMinBits(0))
 	require.NoError(t, err)
 	//t.Cleanup(func() { s.Close() })
 	return s

@@ -99,18 +99,6 @@ func (c *Client) Drop(ctx context.Context, privateKey inet256.PrivateKey) error 
 	return closeErr
 }
 
-func (c *Client) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
-	panic("not implemented")
-}
-
-func (c *Client) LookupPublicKey(ctx context.Context, target inet256.Addr) (inet256.PublicKey, error) {
-	panic("not implemented")
-}
-
-func (c *Client) MTU(ctx context.Context, target inet256.Addr) int {
-	panic("not implemented")
-}
-
 func (c *Client) getServerID() inet256.ID {
 	return c.endpoint.ID
 }

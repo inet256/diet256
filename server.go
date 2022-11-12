@@ -19,8 +19,21 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type serverConfig struct {
+	FindAddrMinBits int32
+}
+
+type ServerOption func(c *serverConfig)
+
+func WithFindAddrMinBits(n int) ServerOption {
+	return func(c *serverConfig) {
+		c.FindAddrMinBits = int32(n)
+	}
+}
+
 type Server struct {
 	privateKey inet256.PrivateKey
+	config     serverConfig
 	log        *logrus.Logger
 	pconn      net.PacketConn
 	lis        quic.Listener
@@ -34,7 +47,13 @@ type Server struct {
 	protocol.UnimplementedControlServer
 }
 
-func NewServer(pconn net.PacketConn, privateKey inet256.PrivateKey) (*Server, error) {
+func NewServer(pconn net.PacketConn, privateKey inet256.PrivateKey, opts ...ServerOption) (*Server, error) {
+	config := serverConfig{
+		FindAddrMinBits: 100,
+	}
+	for _, opt := range opts {
+		opt(&config)
+	}
 	lis, err := quic.Listen(pconn, generateServerTLS(privateKey), &quic.Config{})
 	if err != nil {
 		return nil, err
@@ -43,6 +62,7 @@ func NewServer(pconn net.PacketConn, privateKey inet256.PrivateKey) (*Server, er
 	ctx, cf := context.WithCancel(context.Background())
 	s := &Server{
 		privateKey: privateKey,
+		config:     config,
 		log:        logrus.StandardLogger(),
 		pconn:      pconn,
 		lis:        lis,
@@ -130,7 +150,7 @@ func (s *Server) Listen(req *protocol.ListenReq, srv protocol.Control_ListenServ
 // FindAddr implements ControlServer.FindAddr
 func (s *Server) FindAddr(ctx context.Context, req *protocol.FindAddrReq) (*protocol.FindAddrRes, error) {
 	id, _, raddr := peerFromContext(ctx)
-	if req.Nbits < 100 {
+	if req.Nbits < s.config.FindAddrMinBits {
 		return nil, status.Errorf(codes.InvalidArgument, "server does not allow searching for short prefixes")
 	}
 	log := s.log.WithFields(logrus.Fields{"id": id, "addr": raddr})
@@ -148,10 +168,10 @@ func (s *Server) FindAddr(ctx context.Context, req *protocol.FindAddrReq) (*prot
 // LookupPublicKey implements ControlServer.LookupPublicKey
 func (s *Server) LookupPublicKey(ctx context.Context, req *protocol.LookupPublicKeyReq) (*protocol.LookupPublicKeyRes, error) {
 	id, _, raddr := peerFromContext(ctx)
-	log := s.log.WithFields(logrus.Fields{"id": id, "addr": raddr})
+	targetID := inet256.AddrFromBytes(req.Target)
+	log := s.log.WithFields(logrus.Fields{"id": id, "addr": raddr, "target": targetID})
 	log.Infof("LookupPublicKey")
 
-	targetID := inet256.AddrFromBytes(req.Target)
 	s.mu.RLock()
 	ps, exists := s.peers[targetID]
 	s.mu.RUnlock()

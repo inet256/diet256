@@ -118,17 +118,21 @@ func (n *Node) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.
 }
 
 func (n *Node) LookupPublicKey(ctx context.Context, target inet256.Addr) (inet256.PublicKey, error) {
-	client, err := n.getControlClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-	res, err := client.LookupPublicKey(ctx, &protocol.LookupPublicKeyReq{
-		Target: target[:],
+	return retryN[inet256.PublicKey](5, 100*time.Millisecond, func() (inet256.PublicKey, error) {
+		client, err := n.getControlClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+		res, err := client.LookupPublicKey(ctx, &protocol.LookupPublicKeyReq{
+			Target: target[:],
+		})
+		if err != nil {
+			return nil, err
+		}
+		return inet256.ParsePublicKey(res.PublicKey)
+	}, func(err error) {
+		n.log.Warnf("error during LookupPublicKey %v, retrying...", err)
 	})
-	if err != nil {
-		return nil, err
-	}
-	return inet256.ParsePublicKey(res.PublicKey)
 }
 
 func (n *Node) LocalAddr() inet256.Addr {

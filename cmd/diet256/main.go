@@ -6,16 +6,17 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
 	"runtime/debug"
 
-	"github.com/inet256/diet256"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256grpc"
+	"github.com/inet256/inet256/pkg/inet256http"
 	"github.com/inet256/inet256/pkg/inet256ipv6"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
+
+	"github.com/inet256/diet256"
 )
 
 func main() {
@@ -81,11 +82,8 @@ func NewDaemonCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		gs := grpc.NewServer()
-		server := inet256grpc.NewServer(client)
-		inet256grpc.RegisterINET256Server(gs, server)
 		log.Infof("serving on %v ...", l.Addr())
-		return gs.Serve(l)
+		return http.Serve(l, inet256http.NewServer(client))
 	}
 	return c
 }
