@@ -12,18 +12,18 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/s/swarmutil"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/diet256/internal/protocol"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/lucas-clemente/quic-go"
-	"github.com/sirupsen/logrus"
+	"github.com/quic-go/quic-go"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
 
 type Node struct {
 	client     *Client
-	log        *logrus.Logger
 	privateKey inet256.PrivateKey
 	localAddr  inet256.ID
 	tlsConfig  *tls.Config
@@ -31,7 +31,7 @@ type Node struct {
 
 	baseConn net.PacketConn
 	lis      quic.Listener
-	tellHub  *netutil.TellHub
+	tellHub  *swarmutil.TellHub[inet256.Addr]
 
 	ctrlClientMu sync.Mutex
 	ctrlConn     quic.Connection
@@ -45,7 +45,7 @@ type Node struct {
 	eg  errgroup.Group
 }
 
-func newNode(c *Client, log *logrus.Logger, privateKey inet256.PrivateKey) (*Node, error) {
+func newNode(bgCtx context.Context, c *Client, privateKey inet256.PrivateKey) (*Node, error) {
 	baseConn, err := c.lpc(context.Background(), "udp4", "0.0.0.0:0")
 	if err != nil {
 		return nil, err
@@ -54,10 +54,10 @@ func newNode(c *Client, log *logrus.Logger, privateKey inet256.PrivateKey) (*Nod
 	if err != nil {
 		return nil, err
 	}
-	ctx, cf := context.WithCancel(context.Background())
+	ctx, cf := context.WithCancel(bgCtx)
+	th := swarmutil.NewTellHub[inet256.Addr]()
 	n := &Node{
 		client:     c,
-		log:        log,
 		privateKey: privateKey,
 		localAddr:  inet256.NewAddr(privateKey.Public()),
 		tlsConfig:  generateClientTLS(privateKey),
@@ -65,17 +65,23 @@ func newNode(c *Client, log *logrus.Logger, privateKey inet256.PrivateKey) (*Nod
 
 		baseConn: baseConn,
 		lis:      lis,
-		tellHub:  netutil.NewTellHub(),
+		tellHub:  &th,
 
 		sessions: make(map[sessionKey]quic.Connection),
 		ctx:      ctx,
 		cf:       cf,
 	}
 	n.eg.Go(func() error {
-		return n.baseReadLoop(ctx)
+		if err := n.baseReadLoop(ctx); errors.Is(err, context.Canceled) {
+			err = nil
+		}
+		return nil
 	})
 	n.eg.Go(func() error {
-		return n.listenLoop(ctx)
+		if err := n.listenLoop(ctx); err != nil {
+			err = nil
+		}
+		return nil
 	})
 	return n, nil
 }
@@ -113,7 +119,7 @@ func (n *Node) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.
 		}
 		return inet256.AddrFromBytes(res.Addr), nil
 	}, func(err error) {
-		n.log.Warnf("error during FindAddr %v, retrying...", err)
+		logctx.Warnf(ctx, "error during FindAddr %v, retrying...", err)
 	})
 }
 
@@ -131,7 +137,7 @@ func (n *Node) LookupPublicKey(ctx context.Context, target inet256.Addr) (inet25
 		}
 		return inet256.ParsePublicKey(res.PublicKey)
 	}, func(err error) {
-		n.log.Warnf("error during LookupPublicKey %v, retrying...", err)
+		logctx.Warnf(ctx, "error during LookupPublicKey %v, retrying...", err)
 	})
 }
 
@@ -144,13 +150,13 @@ func (n *Node) PublicKey() inet256.PublicKey {
 }
 
 func (n *Node) Close() error {
+	return n.client.Drop(context.TODO(), n.privateKey)
+}
+
+func (n *Node) close() error {
 	n.cf()
 	n.lis.Close()
 	return n.eg.Wait()
-}
-
-func (n *Node) MTU(ctx context.Context, dst inet256.Addr) int {
-	return inet256.MaxMTU
 }
 
 func (n *Node) getSession(ctx context.Context, dst inet256.Addr) (quic.Connection, error) {
@@ -177,11 +183,12 @@ func (n *Node) getSession(ctx context.Context, dst inet256.Addr) (quic.Connectio
 
 // dialPeer looks up the address of peer using the control plane and then attempts to connect to it.
 func (n *Node) dialPeer(ctx context.Context, dst inet256.Addr) (ret quic.Connection, retErr error) {
-	log := n.log.WithFields(logrus.Fields{"peer": dst})
-	log.Infof("begin dial loop")
+	log := logctx.FromContext(ctx)
+	log = log.With(zap.Any("peer", dst))
+	log.Info("begin dial loop")
 	defer func() {
 		if retErr == nil {
-			log.Infof("connected to peer at %v", ret.RemoteAddr())
+			log.Info("connected to peer", zap.Any("remote_addr", ret.RemoteAddr()))
 		}
 	}()
 	return retryN(10, 100*time.Millisecond, func() (quic.Connection, error) {
@@ -200,16 +207,17 @@ func (n *Node) dialPeer(ctx context.Context, dst inet256.Addr) (ret quic.Connect
 		raddr = fixAddrPort(raddr)
 		return n.dialPeerAt(ctx, dst, raddr)
 	}, func(err error) {
-		n.log.Warnf("error dialing: %v, retying...", err)
+		log.Warn("error dialing. retying...")
 	})
 }
 
 // dialPeerAddr connects to a specific peer at a specific netip.AddrPort
 func (n *Node) dialPeerAt(ctx context.Context, id inet256.Addr, raddr netip.AddrPort) (quic.Connection, error) {
-	log := n.log.WithFields(logrus.Fields{"peer": id, "raddr": raddr, "laddr": n.baseConn.LocalAddr()})
+	log := logctx.FromContext(ctx)
+	log = log.With(zap.Any("peer", id), zap.Any("raddr", raddr), zap.Any("laddr", n.baseConn.LocalAddr()))
 	udpAddr := net.UDPAddrFromAddrPort(raddr)
 	// TODO: lock the remote address
-	log.Infof("dialing peer")
+	log.Info("dialing peer")
 	sess, err := quic.DialContext(ctx, n.baseConn, udpAddr, "", n.tlsConfig.Clone(), n.quicConfig)
 	if err != nil {
 		return nil, err
@@ -253,14 +261,14 @@ func (n *Node) listenLoop(ctx context.Context) error {
 					return n.dialPeerAt(n.ctx, id, addrPort)
 				}, func(error) {})
 				if err != nil {
-					n.log.Warn("error during pre-emptive dial", err)
+					logctx.Warnln(ctx, "error during pre-emptive dial", err)
 				} else {
 					n.serveSession(sess, true)
 				}
 			}()
 		}
 	}, func(err error) {
-		n.log.Warn("error in listen loop: ", err)
+		logctx.Warnln(ctx, "error in listen loop: ", err)
 	})
 }
 
@@ -291,7 +299,7 @@ func (node *Node) dialControlClient(ctx context.Context) (protocol.ControlClient
 			node.ctrlConn = nil
 		}
 		if node.ctrlConn == nil {
-			node.log.Infof("dialing control plane %v...", serverAddr)
+			logctx.Infof(ctx, "dialing control plane %v...", serverAddr)
 			sess, err := quic.Dial(node.baseConn, serverAddr, "", tlsConfig, generateQUICConfig())
 			if err != nil {
 				return nil, err
@@ -360,7 +368,7 @@ func (node *Node) serveSession(sess quic.Connection, isOutbound bool) error {
 				Payload: data,
 			})
 		}(); err != nil {
-			node.log.Warn("error handling stream", err)
+			logctx.Warnln(ctx, "error handling stream", err)
 		}
 	}
 }

@@ -9,7 +9,7 @@ import (
 
 	"github.com/inet256/diet256/internal/protocol"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -179,7 +179,7 @@ func (s *Server) LookupPublicKey(ctx context.Context, req *protocol.LookupPublic
 		return nil, status.Errorf(codes.NotFound, "no public keys found for %v", id)
 	}
 	return &protocol.LookupPublicKeyRes{
-		PublicKey: inet256.MarshalPublicKey(ps.PublicKey),
+		PublicKey: inet256.MarshalPublicKey(nil, ps.PublicKey),
 	}, nil
 }
 
@@ -386,7 +386,10 @@ func peerFromQUICConn(x quic.Connection) (inet256.ID, inet256.PublicKey, error) 
 		return inet256.ID{}, nil, errors.New("no certificates")
 	}
 	cert := tlsState.PeerCertificates[0]
-	pubKey := cert.PublicKey
+	pubKey, err := inet256.PublicKeyFromBuiltIn(cert.PublicKey)
+	if err != nil {
+		return inet256.ID{}, nil, err
+	}
 	id := inet256.NewAddr(pubKey)
 	return id, pubKey, nil
 }

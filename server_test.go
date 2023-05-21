@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/stretchr/testify/require"
@@ -17,12 +16,12 @@ func TestServer(t *testing.T) {
 	client := newTestClient(t, s)
 	ctx := context.Background()
 
-	k1 := p2ptest.NewTestKey(t, 101)
+	k1 := inet256test.NewPrivateKey(t, 101)
 	node1, err := client.Open(ctx, k1)
 	require.NoError(t, err)
 	defer node1.Close()
 
-	k2 := p2ptest.NewTestKey(t, 102)
+	k2 := inet256test.NewPrivateKey(t, 102)
 	node2, err := client.Open(ctx, k2)
 	require.NoError(t, err)
 	defer node2.Close()
@@ -54,7 +53,7 @@ func newTestServer(t testing.TB, i int) *Server {
 }
 
 func newTestServerFromConn(t testing.TB, i int, pc net.PacketConn) *Server {
-	pk := p2ptest.NewTestKey(t, i)
+	pk := inet256test.NewPrivateKey(t, i)
 	s, err := NewServer(pc, pk, WithFindAddrMinBits(0))
 	require.NoError(t, err)
 	//t.Cleanup(func() { s.Close() })

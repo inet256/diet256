@@ -8,11 +8,12 @@ import (
 	"net"
 	"sync"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/swarmutil"
+	"github.com/brendoncarroll/stdctx"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/lucas-clemente/quic-go"
-	"github.com/sirupsen/logrus"
+	"github.com/quic-go/quic-go"
+	"go.uber.org/zap"
 )
 
 // var defaultEndpoint = mustParseEndpoint("AAA@example.com")
@@ -25,12 +26,6 @@ func WithEndpoint(id inet256.ID, addr string) ClientOption {
 	}
 }
 
-func WithLogger(log *logrus.Logger) ClientOption {
-	return func(c *Client) {
-		c.log = log
-	}
-}
-
 type ListenPacketConn = func(ctx context.Context, network, addr string) (net.PacketConn, error)
 
 func WithListenPacketConn(fn ListenPacketConn) ClientOption {
@@ -40,7 +35,7 @@ func WithListenPacketConn(fn ListenPacketConn) ClientOption {
 }
 
 type Client struct {
-	log      *logrus.Logger
+	bgCtx    context.Context
 	endpoint Endpoint
 	lpc      ListenPacketConn
 
@@ -50,8 +45,11 @@ type Client struct {
 
 // New creates a new inet256.Service
 func New(opts ...ClientOption) inet256.Service {
+	ctx := context.Background()
+	l, _ := zap.NewProduction()
+	ctx = logctx.NewContext(ctx, l)
 	c := &Client{
-		log:      logrus.StandardLogger(),
+		bgCtx:    ctx,
 		endpoint: defaultEndpoint,
 		lpc: func(_ context.Context, network, addr string) (net.PacketConn, error) {
 			laddr, err := net.ResolveUDPAddr(network, addr)
@@ -75,14 +73,14 @@ func (c *Client) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 	id := inet256.NewAddr(privateKey.Public())
 	if _, exists := c.nodes[id]; exists {
 		err := errors.New("node is already open")
-		c.log.Warn(err)
+		logctx.Warnln(ctx, err)
 		return nil, err
 	}
-	node, err := newNode(c, c.log, privateKey)
+	node, err := newNode(stdctx.Child(c.bgCtx, id.String()[:8]), c, privateKey)
 	if err != nil {
 		return nil, err
 	}
-	c.log.Infof("opened node %s", id)
+	logctx.Infof(ctx, "opened node %s", id)
 	c.nodes[id] = node
 	return node, nil
 }
@@ -93,7 +91,7 @@ func (c *Client) Drop(ctx context.Context, privateKey inet256.PrivateKey) error 
 	id := inet256.NewAddr(privateKey.Public())
 	var closeErr error
 	if node, exists := c.nodes[id]; exists {
-		closeErr = node.Close()
+		closeErr = node.close()
 	}
 	delete(c.nodes, id)
 	return closeErr
@@ -107,8 +105,8 @@ func (c *Client) getServerUDPAddr() (*net.UDPAddr, error) {
 	return net.ResolveUDPAddr("udp", c.endpoint.Addr)
 }
 
-func generateClientTLS(privKey p2p.PrivateKey) *tls.Config {
-	cert := swarmutil.GenerateSelfSigned(privKey)
+func generateClientTLS(privKey inet256.PrivateKey) *tls.Config {
+	cert := swarmutil.GenerateSelfSigned(privKey.BuiltIn())
 	return &tls.Config{
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: true,
@@ -117,8 +115,8 @@ func generateClientTLS(privKey p2p.PrivateKey) *tls.Config {
 	}
 }
 
-func generateServerTLS(privKey p2p.PrivateKey) *tls.Config {
-	cert := swarmutil.GenerateSelfSigned(privKey)
+func generateServerTLS(privKey inet256.PrivateKey) *tls.Config {
+	cert := swarmutil.GenerateSelfSigned(privKey.BuiltIn())
 	localID := inet256.NewAddr(privKey.Public())
 	return &tls.Config{
 		Certificates:       []tls.Certificate{cert},

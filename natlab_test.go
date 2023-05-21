@@ -2,12 +2,11 @@ package diet256
 
 import (
 	"context"
-	"log"
 	"net"
 	"strconv"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p/p2ptest"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/stretchr/testify/require"
 	"inet.af/netaddr"
@@ -118,9 +117,9 @@ func TestNATLab(t *testing.T) {
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			_, c1, c2 := tc.Setup(t)
-			n1, err := c1.Open(ctx, p2ptest.NewTestKey(t, 101))
+			n1, err := c1.Open(ctx, inet256test.NewPrivateKey(t, 101))
 			require.NoError(t, err)
-			n2, err := c2.Open(ctx, p2ptest.NewTestKey(t, 102))
+			n2, err := c2.Open(ctx, inet256test.NewPrivateKey(t, 102))
 			require.NoError(t, err)
 			inet256test.TestSendRecvOne(t, n1, n2)
 		})
@@ -131,7 +130,7 @@ func TestNATLab(t *testing.T) {
 func newClientMachIf(t testing.TB, s *Server, mach *natlab.Machine, iface *natlab.Interface) *Client {
 	c := newTestClient(t, s, WithListenPacketConn(func(ctx context.Context, network string, addr string) (net.PacketConn, error) {
 		addr = iface.V4().String() + ":0"
-		log.Printf("client listening on %s", addr)
+		logctx.Infof(ctx, "client listening on %s", addr)
 		return mach.ListenPacket(ctx, "udp", addr)
 	}))
 	return c
